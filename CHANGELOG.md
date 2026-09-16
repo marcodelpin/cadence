@@ -14,6 +14,20 @@ Biological names throughout, brain regions, and a generic brain.
   entries and `to_dict` rebuilds the fixed cells from the seed. `tests/test_records.py`
   covers the codes, the write identity, a correlated walk, habituation, the valued code,
   the masks and the settling mean.
+- `Records(backend="torch", device=..., precision=...)`: the records cortex on a torch device.
+  The projection, the offsets, the running mean, the pathway norms and every record table stay
+  there, and the drive product, the `active` winners, the reads and the delta-rule writes run
+  there. The signatures do not change: readings arrive and codes and reads leave as NumPy
+  float64 arrays, and `mean`, `pathway_norm` and `tables` read back from the device, so a
+  checkpoint saves and restores the same numbers. CUDA defaults to float64; MPS needs
+  `precision="float32"`. The winners come from `topk`, which selects the same cells as
+  `argpartition` unless the drive at the boundary is tied, and the code is scattered into a
+  zero row, so the order inside the set never matters. Reduction order is the device library's:
+  over 300 witnessed readings and writes of a 957-input, 4,000-cell cortex on an A10G in
+  float64 the largest deviation from the NumPy path was 3.6e-16 in a code, 4.4e-16 in a read
+  and 2.9e-16 in a record, and every winner set matched. `tests/test_records_torch.py` compares
+  the codes, the reads, 200 writes, the pathway norms, the task sets, the fan-in, the unvalued
+  code and the state accessors against the NumPy path.
 - `Mulberry32`: the 32-bit generator of `brain_scan.js`, with `batch` and Box-Muller
   `normals`. `Records` draws its projection and offsets from it, so a page rebuilds the same
   cells from the seed.

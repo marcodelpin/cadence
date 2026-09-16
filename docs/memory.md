@@ -259,10 +259,38 @@ print(round(float(codes[0] @ codes[1]), 2))            # 0.36: the imagined read
 ### Cost and state
 
 A read is one product of the code with each table and a write one outer-product step per
-field, on NumPy in every backend. `parameters()` counts the record entries, `cells` times
-the width of each field; `projection` and `offset` are fixed. `to_dict()` returns the
-configuration that rebuilds the same cells from `seed`, and the learned state is `tables`,
-`mean`, `seen`, `pathway_norm` and `writes` ([checkpoints](brain.md#checkpoints)).
+field. `parameters()` counts the record entries, `cells` times the width of each field;
+`projection` and `offset` are fixed. `to_dict()` returns the configuration that rebuilds the
+same cells from `seed` and names the backend, and the learned state is `tables`, `mean`,
+`seen`, `pathway_norm` and `writes` ([checkpoints](brain.md#checkpoints)).
+
+### On a device
+
+`backend="torch"` keeps the projection, the offsets, the running mean, the pathway norms and
+every record table on a torch device, and runs the drive product, the winners, the reads and
+the delta-rule writes there. Nothing about the interface changes: readings arrive as NumPy
+arrays, codes and reads leave as NumPy arrays, and `mean`, `pathway_norm` and `tables` read
+back from the device, so a checkpoint saves and restores the same numbers.
+
+```python
+records = cd.Records(957, {"next": 400, "reward": 1}, cells=4000, active=60,
+                     valued=["reward"], backend="torch")          # cuda, else cpu
+records = cd.Records(957, {"next": 400}, backend="torch", device="cuda", precision="float32")
+```
+
+CUDA defaults to float64, the precision of the NumPy path; MPS has no float64 and needs
+`precision="float32"`. The winners come from `topk` rather than `argpartition`, which selects
+the same cells whenever the drive at the boundary is not tied, and the code is scattered into
+a zero row, so the order inside the set never matters. The reduction order of the drive
+product, of the norm over the `active` values, and of the read is the device library's. Over
+300 witnessed readings and writes of a 957-input, 4,000-cell cortex on an A10G in float64, the
+largest deviation from the NumPy path was 3.6e-16 in a code, 4.4e-16 in a read and 2.9e-16 in
+a record, and every winner set was identical. A checkpoint's bytes therefore differ where a
+state hash is taken over them, while the numbers agree to rounding.
+
+The device pays for large cells and wide readings, not for small ones: a single small code is
+dominated by kernel launches. Measure the actual workload, as
+[backends](backends.md#which-hardware) says.
 
 ## Reading and writing directly
 

@@ -54,8 +54,10 @@ should use float64 CPU/CUDA and declare the nudge size and phase residuals.
 Large connectomes whose blocks do not fit `dense_limit` use sparse transport. The CPU backend
 uses SciPy CSR when installed, and the NumPy segmented sum otherwise. PyTorch uses its
 gather/scatter path; `"mlx"` needs the blocks. A records read is one dense product of the
-sparse code with a table; `Records` runs on the host with NumPy whatever backend the brain
-uses.
+sparse code with a table; `Records` runs on the host with NumPy unless it is built with
+`backend="torch"`, which keeps its projection, running mean and tables on the device and reads
+and writes them there ([memory](memory.md#on-a-device)). A brain's backend does not select the
+records' backend: an application that wants both passes both.
 
 ## Sparse CPU transport
 
