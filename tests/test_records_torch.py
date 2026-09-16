@@ -124,3 +124,16 @@ def test_a_copy_of_a_device_cortex_is_independent() -> None:
     cortex.write(code[:, 0], {"next": np.ones(3)}, None)
     assert np.abs(twin.tables["next"]).max() == 0.0
     assert twin.writes == 0 and cortex.writes == 1
+
+
+def test_the_tables_can_be_replaced_as_a_whole_on_the_device() -> None:
+    host, device = pair(inputs=10, fields={"next": 3, "reward": 1}, cells=80, active=4, seed=8)
+    rng = np.random.default_rng(3)
+    saved = {"next": rng.standard_normal((80, 3)), "reward": rng.standard_normal((80, 1))}
+    host.tables, device.tables = saved, saved
+    x = readings(4, 10, seed=5)
+    a, b = host.code(x, adapt=False), device.code(x, adapt=False)
+    for name in saved:
+        assert np.abs(host.read(a)[name] - device.read(b)[name]).max() < TOLERANCE
+    with pytest.raises(ValueError):
+        device.tables = {"next": saved["next"]}

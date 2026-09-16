@@ -268,6 +268,19 @@ class Records:
         proxy: Any = self._kernel.tables
         return proxy
 
+    @tables.setter
+    def tables(self, value: Mapping[str, np.ndarray]) -> None:
+        if set(value) != set(self.fields):
+            raise ValueError(f"the records need one table per field: {sorted(self.fields)}")
+        if self._kernel is None:
+            self._tables = {name: np.asarray(value[name], dtype=float) for name in self.fields}
+            for name, width in self.fields.items():
+                if self._tables[name].shape != (self.cells, width):
+                    raise ValueError(f"the records of {name!r} have shape ({self.cells}, {width})")
+            return
+        for name in self.fields:
+            self._kernel.set_table(name, value[name])
+
     def _allowed(self, readings: np.ndarray) -> np.ndarray | None:
         """The cells each reading's active task allows for the valued code, or None."""
         if not len(self.tasks):
